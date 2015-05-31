@@ -67,24 +67,24 @@ namespace Huxley {
             // https://en.wikipedia.org/wiki/London_station_group 
             // Farringdon [ZFD] is not a London Terminal but it probably should be (maybe when Crossrail opens it will be)
             LondonTerminals = new List<CrsRecord> {
-                new CrsRecord {CrsCode = "BFR", StationName = "London Blackfriars",},
-                new CrsRecord {CrsCode = "CST", StationName = "London Cannon Street",},
-                new CrsRecord {CrsCode = "CHX", StationName = "London Charing Cross",},
-                new CrsRecord {CrsCode = "CTX", StationName = "City Thameslink",},
-                new CrsRecord {CrsCode = "EUS", StationName = "London Euston",},
-                new CrsRecord {CrsCode = "FST", StationName = "London Fenchurch Street",},
-                new CrsRecord {CrsCode = "KGX", StationName = "London Kings Cross",},
-                new CrsRecord {CrsCode = "LST", StationName = "London Liverpool Street",},
-                new CrsRecord {CrsCode = "LBG", StationName = "London Bridge",},
-                new CrsRecord {CrsCode = "MYB", StationName = "London Marylebone",},
-                new CrsRecord {CrsCode = "MOG", StationName = "Moorgate",},
-                new CrsRecord {CrsCode = "OLD", StationName = "Old Street",},
-                new CrsRecord {CrsCode = "PAD", StationName = "London Paddington",},
-                new CrsRecord {CrsCode = "STP", StationName = "London St Pancras International",},
-                new CrsRecord {CrsCode = "VXH", StationName = "Vauxhall",},
-                new CrsRecord {CrsCode = "VIC", StationName = "London Victoria",},
-                new CrsRecord {CrsCode = "WAT", StationName = "London Waterloo",},
-                new CrsRecord {CrsCode = "WAE", StationName = "London Waterloo East",},
+                new CrsRecord {CrsCode = "BFR", StationName = "London Blackfriars"},
+                new CrsRecord {CrsCode = "CST", StationName = "London Cannon Street"},
+                new CrsRecord {CrsCode = "CHX", StationName = "London Charing Cross"},
+                new CrsRecord {CrsCode = "CTX", StationName = "City Thameslink"},
+                new CrsRecord {CrsCode = "EUS", StationName = "London Euston"},
+                new CrsRecord {CrsCode = "FST", StationName = "London Fenchurch Street"},
+                new CrsRecord {CrsCode = "KGX", StationName = "London Kings Cross"},
+                new CrsRecord {CrsCode = "LST", StationName = "London Liverpool Street"},
+                new CrsRecord {CrsCode = "LBG", StationName = "London Bridge"},
+                new CrsRecord {CrsCode = "MYB", StationName = "London Marylebone"},
+                new CrsRecord {CrsCode = "MOG", StationName = "Moorgate"},
+                new CrsRecord {CrsCode = "OLD", StationName = "Old Street"},
+                new CrsRecord {CrsCode = "PAD", StationName = "London Paddington"},
+                new CrsRecord {CrsCode = "STP", StationName = "London St Pancras International"},
+                new CrsRecord {CrsCode = "VXH", StationName = "Vauxhall"},
+                new CrsRecord {CrsCode = "VIC", StationName = "London Victoria"},
+                new CrsRecord {CrsCode = "WAT", StationName = "London Waterloo"},
+                new CrsRecord {CrsCode = "WAE", StationName = "London Waterloo East"}
             };
         }
 
@@ -108,7 +108,7 @@ namespace Huxley {
             return nreCodes.Union(naptanCodes).Union(embeddedCodes);
         }
 
-        private static async Task<ISet<CrsRecord>> GetCrsCodesFromNaptanAsync()
+        public static async Task<ISet<CrsRecord>> GetCrsCodesFromNaptanAsync()
         {
             // NaPTAN - has better data than the NRE list but is missing some entries (updated weekly)
             // Part of this archive https://www.dft.gov.uk/NaPTAN/snapshot/NaPTANcsv.zip along with other modes of transport
@@ -119,7 +119,7 @@ namespace Huxley {
             return await GetCrsCodesFromRemoteSourceAsync(naptanRailUrl).ConfigureAwait(false);
         }
 
-        private static async Task<ISet<CrsRecord>> GetCrsCodesFromNreAsync()
+        public static async Task<ISet<CrsRecord>> GetCrsCodesFromNreAsync()
         {
             // NRE list - incomplete / old (some codes only in NaPTAN work against the Darwin web service)
             const string crsUrl = "http://www.nationalrail.co.uk/static/documents/content/station_codes.csv";
