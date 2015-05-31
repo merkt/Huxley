@@ -32,9 +32,10 @@ using Formo;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
-namespace Huxley {
-    public class HuxleyApi : HttpApplication {
-
+namespace Huxley
+{
+    public class HuxleyApi : HttpApplication
+    {
         // Singleton to store the station name to CRS lookup
         public static IEnumerable<CrsRecord> CrsCodes { get; private set; }
 
@@ -44,15 +45,19 @@ namespace Huxley {
         // Singleton to store the Huxley settings
         public static HuxleySettings Settings { get; private set; }
 
-        protected async void Application_Start() {
+        protected async void Application_Start()
+        {
             // Makes the JSON easier to read in a browser without installing an extension like JSONview
-            GlobalConfiguration.Configuration.Formatters.JsonFormatter.SerializerSettings.Formatting = Formatting.Indented;
+            GlobalConfiguration.Configuration.Formatters.JsonFormatter.SerializerSettings.Formatting =
+                Formatting.Indented;
 
             // Stops the backing field names being used instead of the public property names (*Field & PropertyChanged etc.)
-            GlobalConfiguration.Configuration.Formatters.JsonFormatter.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+            GlobalConfiguration.Configuration.Formatters.JsonFormatter.SerializerSettings.ContractResolver =
+                new CamelCasePropertyNamesContractResolver();
 
             // Returns JSON to the browser without needing to add application/json to the accept request header - remove to use XML (becomes the default)
-            GlobalConfiguration.Configuration.Formatters.Remove(GlobalConfiguration.Configuration.Formatters.XmlFormatter);
+            GlobalConfiguration.Configuration.Formatters.Remove(
+                GlobalConfiguration.Configuration.Formatters.XmlFormatter);
 
             // Pass Register into Configure to support attribute routing in the future
             GlobalConfiguration.Configure(WebApiConfig.Register);
@@ -66,7 +71,8 @@ namespace Huxley {
 
             // https://en.wikipedia.org/wiki/London_station_group 
             // Farringdon [ZFD] is not a London Terminal but it probably should be (maybe when Crossrail opens it will be)
-            LondonTerminals = new List<CrsRecord> {
+            LondonTerminals = new List<CrsRecord>
+            {
                 new CrsRecord {CrsCode = "BFR", StationName = "London Blackfriars"},
                 new CrsRecord {CrsCode = "CST", StationName = "London Cannon Street"},
                 new CrsRecord {CrsCode = "CHX", StationName = "London Charing Cross"},
@@ -88,9 +94,11 @@ namespace Huxley {
             };
         }
 
-        protected void Application_BeginRequest(object sender, EventArgs e) {
+        protected void Application_BeginRequest(object sender, EventArgs e)
+        {
             var application = sender as HttpApplication;
-            if (application != null && application.Context != null) {
+            if (application != null && application.Context != null)
+            {
                 application.Context.Response.Headers.Remove("Server");
             }
         }
@@ -128,34 +136,9 @@ namespace Huxley {
             return await GetCrsCodesFromRemoteSourceAsync<NreCrsRecordMap>(crsUrl).ConfigureAwait(false);
         }
 
-        private static IEnumerable<CrsRecord> GetCrsCodesFromEmbeddedPath(string embeddedCrsPath)
-        {
-            var codes = new HashSet<CrsRecord>();
-
-            try
-            {
-                // If we can't get the latest version then use the embedded version
-                // Might be a little bit out of date but probably good enough
-                using (var stream = File.OpenRead(embeddedCrsPath))
-                {
-                    using (var csvReader = new CsvReader(new StreamReader(stream)))
-                    {
-                        codes = new HashSet<CrsRecord>(csvReader.GetRecords<CrsRecord>()
-                            .Select(c => new CrsRecord {StationName = c.StationName, CrsCode = c.CrsCode}));
-                    }
-                }
-            }
-            // ReSharper disable once EmptyGeneralCatchClause
-            catch
-            {
-            }
-
-            return codes;
-        }
-
         private static async Task<ISet<CrsRecord>> GetCrsCodesFromRemoteSourceAsync<T>(string url) where T : CsvClassMap
         {
-            return await GetCrsCodesFromRemoteSourceAsync(url, typeof(T)).ConfigureAwait(false);
+            return await GetCrsCodesFromRemoteSourceAsync(url, typeof (T)).ConfigureAwait(false);
         }
 
         private static async Task<ISet<CrsRecord>> GetCrsCodesFromRemoteSourceAsync(string url)
@@ -184,6 +167,31 @@ namespace Huxley {
                                 StationName = c.StationName.Replace("Rail Station", string.Empty).Trim(),
                                 CrsCode = c.CrsCode
                             }));
+                    }
+                }
+            }
+            // ReSharper disable once EmptyGeneralCatchClause
+            catch
+            {
+            }
+
+            return codes;
+        }
+
+        private static IEnumerable<CrsRecord> GetCrsCodesFromEmbeddedPath(string embeddedCrsPath)
+        {
+            var codes = new HashSet<CrsRecord>();
+
+            try
+            {
+                // If we can't get the latest version then use the embedded version
+                // Might be a little bit out of date but probably good enough
+                using (var stream = File.OpenRead(embeddedCrsPath))
+                {
+                    using (var csvReader = new CsvReader(new StreamReader(stream)))
+                    {
+                        codes = new HashSet<CrsRecord>(csvReader.GetRecords<CrsRecord>()
+                            .Select(c => new CrsRecord { StationName = c.StationName, CrsCode = c.CrsCode }));
                     }
                 }
             }
