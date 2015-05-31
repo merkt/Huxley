@@ -18,9 +18,39 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+using System;
+
 namespace Huxley {
-    public class CrsRecord {
+    public class CrsRecord : IEquatable<CrsRecord>
+    {
         public string StationName { get; set; }
         public string CrsCode { get; set; }
+
+        public override int GetHashCode()
+        {
+            return CrsCode.GetHashCode();
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(obj, null)) return false;
+
+            if (ReferenceEquals(this, obj)) return true;
+
+            var other = obj as CrsRecord;
+
+            if (other == null) return false;
+
+            return CrsCode.Equals(other.CrsCode);
+        }
+
+        public bool Equals(CrsRecord other)
+        {
+            if (ReferenceEquals(other, null)) return false;
+
+            if (ReferenceEquals(this, other)) return true;
+
+            return CrsCode.Equals(other.CrsCode);
+        }
     }
 }

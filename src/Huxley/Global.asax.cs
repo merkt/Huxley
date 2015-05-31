@@ -35,7 +35,7 @@ namespace Huxley {
     public class HuxleyApi : HttpApplication {
 
         // Singleton to store the station name to CRS lookup
-        public static IList<CrsRecord> CrsCodes { get; private set; }
+        public static IEnumerable<CrsRecord> CrsCodes { get; private set; }
 
         // Singleton to store the London Terminals CRS lookup
         public static IList<CrsRecord> LondonTerminals { get; private set; }
@@ -43,7 +43,7 @@ namespace Huxley {
         // Singleton to store the Huxley settings
         public static HuxleySettings Settings { get; private set; }
 
-        protected void Application_Start() {
+        protected async void Application_Start() {
             // Makes the JSON easier to read in a browser without installing an extension like JSONview
             GlobalConfiguration.Configuration.Formatters.JsonFormatter.SerializerSettings.Formatting = Formatting.Indented;
 
@@ -57,11 +57,11 @@ namespace Huxley {
             GlobalConfiguration.Configure(WebApiConfig.Register);
 
             // Load settings
-            dynamic config = new Configuration();
+            var config = new Configuration();
             Settings = config.Bind<HuxleySettings>();
 
             // Set the CRS dictionary passing in embedded CRS path
-            CrsCodes = GetCrsCodes(Server.MapPath("~/RailReferences.csv")).Result;
+            CrsCodes = await GetCrsCodes(Server.MapPath("~/RailReferences.csv"));
 
             // https://en.wikipedia.org/wiki/London_station_group 
             // Farringdon [ZFD] is not a London Terminal but it probably should be (maybe when Crossrail opens it will be)
@@ -94,66 +94,105 @@ namespace Huxley {
             }
         }
 
-        private static async Task<IList<CrsRecord>> GetCrsCodes(string embeddedCrsPath) {
-            var codes = new List<CrsRecord>();
+        private static async Task<IEnumerable<CrsRecord>> GetCrsCodes(string embeddedCrsPath)
+        {
+            // Execute both tasks in parallel
+            var nreTask = GetCrsCodesFromNre().ConfigureAwait(false);
+            var naptanTask = GetCrsCodesFromNaptan().ConfigureAwait(false);
 
-            // NRE list - incomplete / old (some codes only in NaPTAN work against the Darwin web service)
-            const string crsUrl = "http://www.nationalrail.co.uk/static/documents/content/station_codes.csv";
-            try {
-                using (var client = new HttpClient()) {
-                    var stream = await client.GetStreamAsync(crsUrl);
-                    using (var csvReader = new CsvReader(new StreamReader(stream))) {
-                        // Need a custom map as NRE headers are different to NaPTAN
-                        csvReader.Configuration.RegisterClassMap<NreCrsRecordMap>();
-                        AddCodesToList(codes, csvReader);
-                    }
-                }
-                // ReSharper disable EmptyGeneralCatchClause
-            } catch {
-                // Don't do anything if this fails as we try to load from NaPTAN next
-                // ReSharper restore EmptyGeneralCatchClause
-            }
+            var nreCodes = await nreTask;
+            var naptanCodes = await naptanTask;
+            var embeddedCodes = GetCrsCodesFromEmbeddedPath(embeddedCrsPath);
+
+            return nreCodes.Union(naptanCodes).Union(embeddedCodes);
+        }
+
+        private static async Task<ISet<CrsRecord>> GetCrsCodesFromNaptan()
+        {
+            ISet<CrsRecord> codes = new HashSet<CrsRecord>();
 
             // NaPTAN - has better data than the NRE list but is missing some entries (updated weekly)
             // Part of this archive https://www.dft.gov.uk/NaPTAN/snapshot/NaPTANcsv.zip along with other modes of transport
             // Contains public sector information licensed under the Open Government Licence v3.0.
-            const string naptanRailUrl = "https://raw.githubusercontent.com/jpsingleton/Huxley/master/src/Huxley/RailReferences.csv";
-            try {
+            const string naptanRailUrl =
+                "https://raw.githubusercontent.com/jpsingleton/Huxley/master/src/Huxley/RailReferences.csv";
+            try
+            {
                 // First try to get the latest version
-                using (var client = new HttpClient()) {
-                    var stream = await client.GetStreamAsync(naptanRailUrl);
-                    using (var csvReader = new CsvReader(new StreamReader(stream))) {
-                        AddCodesToList(codes, csvReader);
+                using (var client = new HttpClient())
+                {
+                    var stream = await client.GetStreamAsync(naptanRailUrl).ConfigureAwait(false);
+                    using (var csvReader = new CsvReader(new StreamReader(stream)))
+                    {
+                        codes = new HashSet<CrsRecord>(csvReader.GetRecords<CrsRecord>()
+                            .Select(c => new CrsRecord
+                            {
+                                // NaPTAN suffixes most station names with "Rail Station" which we don't want
+                                StationName = c.StationName.Replace("Rail Station", string.Empty).Trim(),
+                                CrsCode = c.CrsCode
+                            }));
                     }
                 }
-            } catch {
-                try {
-                    // If we can't get the latest version then use the embedded version
-                    // Might be a little bit out of date but probably good enough
-                    using (var stream = File.OpenRead(embeddedCrsPath)) {
-                        using (var csvReader = new CsvReader(new StreamReader(stream))) {
-                            AddCodesToList(codes, csvReader);
-                        }
-                    }
-                    // ReSharper disable EmptyGeneralCatchClause
-                } catch {
-                    // If this doesn't work continue to start up
-                    // ReSharper restore EmptyGeneralCatchClause
-                }
+            }
+            // ReSharper disable once EmptyGeneralCatchClause
+            catch
+            {
             }
 
             return codes;
         }
 
-        private static void AddCodesToList(List<CrsRecord> codes, CsvReader csvReader) {
-            // Enumerate results and add to a list as reader can only be enumerated once
-            // Only missing codes are added to the list (first pass will add all codes)
-            codes.AddRange(csvReader.GetRecords<CrsRecord>().Where(c => codes.All(code => code.CrsCode != c.CrsCode))
-                                    .Select(c => new CrsRecord {
-                                        // NaPTAN suffixes most station names with "Rail Station" which we don't want
-                                        StationName = c.StationName.Replace("Rail Station", "").Trim(),
-                                        CrsCode = c.CrsCode,
-                                    }));
+        private static IEnumerable<CrsRecord> GetCrsCodesFromEmbeddedPath(string embeddedCrsPath)
+        {
+            var codes = new HashSet<CrsRecord>();
+
+            try
+            {
+                // If we can't get the latest version then use the embedded version
+                // Might be a little bit out of date but probably good enough
+                using (var stream = File.OpenRead(embeddedCrsPath))
+                {
+                    using (var csvReader = new CsvReader(new StreamReader(stream)))
+                    {
+                        codes = new HashSet<CrsRecord>(csvReader.GetRecords<CrsRecord>()
+                            .Select(c => new CrsRecord {StationName = c.StationName, CrsCode = c.CrsCode}));
+                    }
+                }
+            }
+            // ReSharper disable once EmptyGeneralCatchClause
+            catch
+            {
+            }
+
+            return codes;
+        }
+
+        private static async Task<ISet<CrsRecord>> GetCrsCodesFromNre()
+        {
+            var codes = new HashSet<CrsRecord>();
+
+            // NRE list - incomplete / old (some codes only in NaPTAN work against the Darwin web service)
+            const string crsUrl = "http://www.nationalrail.co.uk/static/documents/content/station_codes.csv";
+            try
+            {
+                using (var client = new HttpClient())
+                {
+                    var stream = await client.GetStreamAsync(crsUrl).ConfigureAwait(false);
+                    using (var csvReader = new CsvReader(new StreamReader(stream)))
+                    {
+                        // Need a custom map as NRE headers are different to NaPTAN
+                        csvReader.Configuration.RegisterClassMap<NreCrsRecordMap>();
+                        codes = new HashSet<CrsRecord>(csvReader.GetRecords<CrsRecord>()
+                            .Select(c => new CrsRecord {StationName = c.StationName, CrsCode = c.CrsCode}));
+                    }
+                }
+            }
+            // ReSharper disable once EmptyGeneralCatchClause
+            catch
+            {
+            }
+
+            return codes;
         }
     }
 }
