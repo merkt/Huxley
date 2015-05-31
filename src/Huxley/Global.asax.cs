@@ -63,7 +63,7 @@ namespace Huxley
             GlobalConfiguration.Configure(WebApiConfig.Register);
 
             // Load settings
-            var config = new Configuration();
+            dynamic config = new Configuration();
             Settings = config.Bind<HuxleySettings>();
 
             // Set the CRS dictionary passing in embedded CRS path
