@@ -27,6 +27,7 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
 using CsvHelper;
+using CsvHelper.Configuration;
 using Formo;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
@@ -97,8 +98,8 @@ namespace Huxley {
         private static async Task<IEnumerable<CrsRecord>> GetCrsCodes(string embeddedCrsPath)
         {
             // Execute both tasks in parallel
-            var nreTask = GetCrsCodesFromNre().ConfigureAwait(false);
-            var naptanTask = GetCrsCodesFromNaptan().ConfigureAwait(false);
+            var nreTask = GetCrsCodesFromNreAsync().ConfigureAwait(false);
+            var naptanTask = GetCrsCodesFromNaptanAsync().ConfigureAwait(false);
 
             var nreCodes = await nreTask;
             var naptanCodes = await naptanTask;
@@ -107,39 +108,24 @@ namespace Huxley {
             return nreCodes.Union(naptanCodes).Union(embeddedCodes);
         }
 
-        private static async Task<ISet<CrsRecord>> GetCrsCodesFromNaptan()
+        private static async Task<ISet<CrsRecord>> GetCrsCodesFromNaptanAsync()
         {
-            ISet<CrsRecord> codes = new HashSet<CrsRecord>();
-
             // NaPTAN - has better data than the NRE list but is missing some entries (updated weekly)
             // Part of this archive https://www.dft.gov.uk/NaPTAN/snapshot/NaPTANcsv.zip along with other modes of transport
             // Contains public sector information licensed under the Open Government Licence v3.0.
             const string naptanRailUrl =
                 "https://raw.githubusercontent.com/jpsingleton/Huxley/master/src/Huxley/RailReferences.csv";
-            try
-            {
-                // First try to get the latest version
-                using (var client = new HttpClient())
-                {
-                    var stream = await client.GetStreamAsync(naptanRailUrl).ConfigureAwait(false);
-                    using (var csvReader = new CsvReader(new StreamReader(stream)))
-                    {
-                        codes = new HashSet<CrsRecord>(csvReader.GetRecords<CrsRecord>()
-                            .Select(c => new CrsRecord
-                            {
-                                // NaPTAN suffixes most station names with "Rail Station" which we don't want
-                                StationName = c.StationName.Replace("Rail Station", string.Empty).Trim(),
-                                CrsCode = c.CrsCode
-                            }));
-                    }
-                }
-            }
-            // ReSharper disable once EmptyGeneralCatchClause
-            catch
-            {
-            }
 
-            return codes;
+            return await GetCrsCodesFromRemoteSourceAsync(naptanRailUrl).ConfigureAwait(false);
+        }
+
+        private static async Task<ISet<CrsRecord>> GetCrsCodesFromNreAsync()
+        {
+            // NRE list - incomplete / old (some codes only in NaPTAN work against the Darwin web service)
+            const string crsUrl = "http://www.nationalrail.co.uk/static/documents/content/station_codes.csv";
+
+            // Need a custom map as NRE headers are different to NaPTAN
+            return await GetCrsCodesFromRemoteSourceAsync<NreCrsRecordMap>(crsUrl).ConfigureAwait(false);
         }
 
         private static IEnumerable<CrsRecord> GetCrsCodesFromEmbeddedPath(string embeddedCrsPath)
@@ -167,23 +153,37 @@ namespace Huxley {
             return codes;
         }
 
-        private static async Task<ISet<CrsRecord>> GetCrsCodesFromNre()
+        private static async Task<ISet<CrsRecord>> GetCrsCodesFromRemoteSourceAsync<T>(string url) where T : CsvClassMap
         {
-            var codes = new HashSet<CrsRecord>();
+            return await GetCrsCodesFromRemoteSourceAsync(url, typeof(T)).ConfigureAwait(false);
+        }
 
-            // NRE list - incomplete / old (some codes only in NaPTAN work against the Darwin web service)
-            const string crsUrl = "http://www.nationalrail.co.uk/static/documents/content/station_codes.csv";
+        private static async Task<ISet<CrsRecord>> GetCrsCodesFromRemoteSourceAsync(string url)
+        {
+            return await GetCrsCodesFromRemoteSourceAsync(url, null).ConfigureAwait(false);
+        }
+
+        private static async Task<ISet<CrsRecord>> GetCrsCodesFromRemoteSourceAsync(string url, Type typeOfClassMap)
+        {
+            ISet<CrsRecord> codes = new HashSet<CrsRecord>();
+
             try
             {
                 using (var client = new HttpClient())
                 {
-                    var stream = await client.GetStreamAsync(crsUrl).ConfigureAwait(false);
+                    var stream = await client.GetStreamAsync(url).ConfigureAwait(false);
                     using (var csvReader = new CsvReader(new StreamReader(stream)))
                     {
-                        // Need a custom map as NRE headers are different to NaPTAN
-                        csvReader.Configuration.RegisterClassMap<NreCrsRecordMap>();
+                        if (typeOfClassMap != null)
+                            csvReader.Configuration.RegisterClassMap(typeOfClassMap);
+
                         codes = new HashSet<CrsRecord>(csvReader.GetRecords<CrsRecord>()
-                            .Select(c => new CrsRecord {StationName = c.StationName, CrsCode = c.CrsCode}));
+                            .Select(c => new CrsRecord
+                            {
+                                // NaPTAN suffixes most station names with "Rail Station" which we don't want
+                                StationName = c.StationName.Replace("Rail Station", string.Empty).Trim(),
+                                CrsCode = c.CrsCode
+                            }));
                     }
                 }
             }
