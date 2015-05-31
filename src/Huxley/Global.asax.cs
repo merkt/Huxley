@@ -95,7 +95,7 @@ namespace Huxley {
             }
         }
 
-        private static async Task<IEnumerable<CrsRecord>> GetCrsCodes(string embeddedCrsPath)
+        public static async Task<IEnumerable<CrsRecord>> GetCrsCodes(string embeddedCrsPath)
         {
             // Execute both tasks in parallel
             var nreTask = GetCrsCodesFromNreAsync().ConfigureAwait(false);
