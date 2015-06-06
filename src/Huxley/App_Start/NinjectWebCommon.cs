@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Web;
 using Formo;
 using Huxley;
@@ -52,10 +53,9 @@ namespace Huxley
                     .ToMethod(ctx => new Configuration().Bind<HuxleySettings>())
                     .InSingletonScope();
 
-                // TODO: Figure out how to get HttpContext
-                //if (HttpContext.Current == null) return kernel;
-
-                IEnumerable<CrsRecord> crsRecords = CrsRecord.GetCrsCodesSync();
+                // TODO: move path in config file
+                IEnumerable<CrsRecord> crsRecords =
+                    CrsRecord.GetCrsCodesSync(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "RailReferences.csv"));
 
                 foreach (var record in crsRecords)
                 {

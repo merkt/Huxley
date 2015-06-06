@@ -161,6 +161,7 @@ namespace Huxley.Controllers
                         DateTime std;
                         if (DateTime.TryParse(si.std, out std))
                         {
+                            // TODO: fix this calculation
                             var late = etd.Subtract(std);
                             totalDelayMinutes += (int) late.TotalMinutes;
                             if (late.TotalMinutes > huxleySettings.DelayMinutesThreshold)
