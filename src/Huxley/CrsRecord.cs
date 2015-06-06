@@ -85,6 +85,11 @@ namespace Huxley
             return CrsCode.Equals(other.CrsCode);
         }
 
+        internal static IEnumerable<CrsRecord> GetCrsCodesSync()
+        {
+            return Task.Run(() => GetCrsCodesAsync(null)).Result;
+        }
+
         internal static IEnumerable<CrsRecord> GetCrsCodesSync(string embeddedCrsPath)
         {
             return Task.Run(() => GetCrsCodesAsync(embeddedCrsPath)).Result;
@@ -125,6 +130,34 @@ namespace Huxley
             return await GetCrsCodesFromRemoteSourceAsync<NreCrsRecordMap>(crsUrl).ConfigureAwait(false);
         }
 
+        public static IEnumerable<CrsRecord> GetCrsCodesFromFilePath(string filePath)
+        {
+            var codes = new HashSet<CrsRecord>();
+
+            if (string.IsNullOrEmpty(filePath))
+                return codes;
+
+            try
+            {
+                // If we can't get the latest version then use the embedded version
+                // Might be a little bit out of date but probably good enough
+                using (var stream = File.OpenRead(filePath))
+                {
+                    using (var csvReader = new CsvReader(new StreamReader(stream)))
+                    {
+                        codes = new HashSet<CrsRecord>(csvReader.GetRecords<CrsRecord>()
+                            .Select(c => new CrsRecord { StationName = c.StationName, CrsCode = c.CrsCode }));
+                    }
+                }
+            }
+            // ReSharper disable once EmptyGeneralCatchClause
+            catch
+            {
+            }
+
+            return codes;
+        }
+
         private static async Task<ISet<CrsRecord>> GetCrsCodesFromRemoteSourceAsync<T>(string url) where T : CsvClassMap
         {
             return await GetCrsCodesFromRemoteSourceAsync(url, typeof(T)).ConfigureAwait(false);
@@ -156,31 +189,6 @@ namespace Huxley
                                 StationName = c.StationName.Replace("Rail Station", string.Empty).Trim(),
                                 CrsCode = c.CrsCode
                             }));
-                    }
-                }
-            }
-                // ReSharper disable once EmptyGeneralCatchClause
-            catch
-            {
-            }
-
-            return codes;
-        }
-
-        public static IEnumerable<CrsRecord> GetCrsCodesFromFilePath(string filePath)
-        {
-            var codes = new HashSet<CrsRecord>();
-
-            try
-            {
-                // If we can't get the latest version then use the embedded version
-                // Might be a little bit out of date but probably good enough
-                using (var stream = File.OpenRead(filePath))
-                {
-                    using (var csvReader = new CsvReader(new StreamReader(stream)))
-                    {
-                        codes = new HashSet<CrsRecord>(csvReader.GetRecords<CrsRecord>()
-                            .Select(c => new CrsRecord {StationName = c.StationName, CrsCode = c.CrsCode}));
                     }
                 }
             }

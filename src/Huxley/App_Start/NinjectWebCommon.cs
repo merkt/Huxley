@@ -51,11 +51,16 @@ namespace Huxley
                 kernel.Bind<HuxleySettings>()
                     .ToMethod(ctx => new Configuration().Bind<HuxleySettings>())
                     .InSingletonScope();
-                // TODO: Make the file path configurable
-                kernel.Bind<IEnumerable<CrsRecord>>()
-                    .ToMethod(
-                        ctx => CrsRecord.GetCrsCodesSync(HttpContext.Current.Server.MapPath("~/RailReferences.csv")))
-                    .InSingletonScope();
+
+                // TODO: Figure out how to get HttpContext
+                //if (HttpContext.Current == null) return kernel;
+
+                IEnumerable<CrsRecord> crsRecords = CrsRecord.GetCrsCodesSync();
+
+                foreach (var record in crsRecords)
+                {
+                    kernel.Bind<CrsRecord>().ToConstant(record).InSingletonScope();
+                }
 
                 return kernel;
             }
