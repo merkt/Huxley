@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using System;
+using System.Collections.Generic;
 using System.Drawing.Text;
 using System.Linq;
 using System.Web.Http;
@@ -30,11 +31,13 @@ namespace Huxley.Controllers
     {
         protected readonly ILdbClient client;
         protected HuxleySettings huxleySettings;
+        protected readonly IEnumerable<CrsRecord> crsRecords;
 
-        public LdbController(ILdbClient client, HuxleySettings settings)
+        public LdbController(ILdbClient client, HuxleySettings settings, IEnumerable<CrsRecord> crsRecords)
         {
             this.client = client;
             huxleySettings = settings;
+            this.crsRecords = crsRecords;
         }
 
         protected static AccessToken MakeAccessToken(Guid accessToken, HuxleySettings huxleySettings)
@@ -49,16 +52,18 @@ namespace Huxley.Controllers
             return new AccessToken {TokenValue = accessToken.ToString()};
         }
 
-        protected static string MakeCrsCode(string query)
+        protected static string MakeCrsCode(string query, IEnumerable<CrsRecord> crsRecords)
         {
+            var crsRecordArray = crsRecords as CrsRecord[] ?? crsRecords.ToArray();
+            
             // Process CRS codes if query is present
             if (!string.IsNullOrWhiteSpace(query) &&
                 // If query is not in the list of CRS codes
-                !HuxleyApi.CrsCodes.Any(c =>
+                !crsRecordArray.Any(c =>
                     c.CrsCode.Equals(query, StringComparison.InvariantCultureIgnoreCase)))
             {
                 // And query matches a single station name
-                var results = HuxleyApi.CrsCodes.Where(c =>
+                var results = crsRecordArray.Where(c =>
                     c.StationName.IndexOf(query, StringComparison.InvariantCultureIgnoreCase) >= 0).ToList();
                 if (results.Count == 1)
                 {

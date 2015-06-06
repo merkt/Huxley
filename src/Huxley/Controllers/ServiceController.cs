@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Web.Http;
 using Huxley.Models;
@@ -28,8 +29,8 @@ namespace Huxley.Controllers
 {
     public class ServiceController : LdbController
     {
-        public ServiceController(ILdbClient client, HuxleySettings settings)
-            : base(client, settings)
+        public ServiceController(ILdbClient client, HuxleySettings settings, IEnumerable<CrsRecord> crsRecords)
+            : base(client, settings, crsRecords)
         {
         }
 

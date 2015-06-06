@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
 using Formo;
 using Huxley.Controllers;
 using Huxley.ldbServiceReference;
@@ -15,14 +18,19 @@ namespace Huxley.Tests.Controllers
         private static DelaysController _delaysController;
         private static DelaysResponse _response;
         private static HuxleySettings _settings;
+        private static IEnumerable<CrsRecord> _crsRecords;
+        private static string _binPath;
 
         Establish context = () =>
         {
             dynamic config = new Configuration();
             _settings = config.Bind<HuxleySettings>();
+            _binPath = Path.GetDirectoryName(new Uri(Assembly.GetExecutingAssembly().CodeBase).LocalPath);
+
+            _crsRecords = CrsRecord.GetCrsCodesFromFilePath(Path.Combine(_binPath, "RailReferences.csv"));
 
             _ldbClient = new LdbClient(new LDBServiceSoapClient());
-            _delaysController = new DelaysController(_ldbClient, _settings);
+            _delaysController = new DelaysController(_ldbClient, _settings, _crsRecords);
             // delays/clapham%20junction/from/london/20?accessToken=
             _stationBoardRequest = new StationBoardRequest
             {

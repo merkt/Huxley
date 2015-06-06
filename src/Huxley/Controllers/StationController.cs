@@ -18,6 +18,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Web.Http;
 using Huxley.Models;
@@ -27,8 +28,8 @@ namespace Huxley.Controllers
 {
     public class StationController : LdbController
     {
-        public StationController(ILdbClient client, HuxleySettings settings)
-            : base(client, settings)
+        public StationController(ILdbClient client, HuxleySettings settings, IEnumerable<CrsRecord> crsRecords)
+            : base(client, settings, crsRecords)
         {
         }
 
@@ -36,8 +37,8 @@ namespace Huxley.Controllers
         public async Task<StationBoard> Get([FromUri] StationBoardRequest request)
         {
             // Process CRS codes
-            request.Crs = MakeCrsCode(request.Crs);
-            request.FilterCrs = MakeCrsCode(request.FilterCrs);
+            request.Crs = MakeCrsCode(request.Crs, crsRecords);
+            request.FilterCrs = MakeCrsCode(request.FilterCrs, crsRecords);
 
             var token = MakeAccessToken(request.AccessToken, huxleySettings);
 

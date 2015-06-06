@@ -73,13 +73,16 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Controllers\DelaysControllerSpec.cs" />
-    <Compile Include="HuxleyApiSpec.cs" />
+    <Compile Include="CrsRecordSpec.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
     <None Include="packages.config" />
     <Content Include="RailReferences.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Properties\RailReferences.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

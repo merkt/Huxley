@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Web;
 using Formo;
 using Huxley;
@@ -7,8 +8,8 @@ using Microsoft.Web.Infrastructure.DynamicModuleHelper;
 using Ninject;
 using Ninject.Web.Common;
 
-[assembly: WebActivatorEx.PreApplicationStartMethod(typeof (NinjectWebCommon), "Start")]
-[assembly: WebActivatorEx.ApplicationShutdownMethodAttribute(typeof (NinjectWebCommon), "Stop")]
+[assembly: WebActivatorEx.PreApplicationStartMethod(typeof(NinjectWebCommon), "Start")]
+[assembly: WebActivatorEx.ApplicationShutdownMethodAttribute(typeof(NinjectWebCommon), "Stop")]
 
 namespace Huxley
 {
@@ -47,7 +48,15 @@ namespace Huxley
                 kernel.Bind<IHttpModule>().To<HttpApplicationInitializationHttpModule>();
                 kernel.Bind<ILdbClient>().To<LdbClient>().InRequestScope();
                 kernel.Bind<LDBServiceSoapClient>().To<LDBServiceSoapClient>().InRequestScope();
-                kernel.Bind<HuxleySettings>().ToMethod(ctx => new Configuration().Bind<HuxleySettings>()).InSingletonScope();
+                kernel.Bind<HuxleySettings>()
+                    .ToMethod(ctx => new Configuration().Bind<HuxleySettings>())
+                    .InSingletonScope();
+                // TODO: Make the file path configurable
+                kernel.Bind<IEnumerable<CrsRecord>>()
+                    .ToMethod(
+                        ctx => CrsRecord.GetCrsCodesSync(HttpContext.Current.Server.MapPath("~/RailReferences.csv")))
+                    .InSingletonScope();
+
                 return kernel;
             }
             catch

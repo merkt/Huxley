@@ -27,10 +27,17 @@ namespace Huxley.Controllers
 {
     public class CrsController : ApiController
     {
+        private readonly IEnumerable<CrsRecord> _crsRecords;
+
+        public CrsController(IEnumerable<CrsRecord> crsRecords)
+        {
+            _crsRecords = crsRecords;
+        }
+
         // GET /crs
         public IEnumerable<CrsRecord> Get()
         {
-            return HuxleyApi.CrsCodes;
+            return _crsRecords;
         }
 
         // GET /crs/{query}
@@ -38,11 +45,11 @@ namespace Huxley.Controllers
         {
             if (query.Equals("London Terminals", StringComparison.InvariantCultureIgnoreCase))
             {
-                return HuxleyApi.LondonTerminals;
+                return CrsRecord.LondonTerminals;
             }
             // Could use a RegEx here but putting user input into a RegEx can be dangerous
             var results =
-                HuxleyApi.CrsCodes.Where(
+                _crsRecords.Where(
                     c => c.StationName.IndexOf(query, StringComparison.InvariantCultureIgnoreCase) >= 0);
             return results;
         }

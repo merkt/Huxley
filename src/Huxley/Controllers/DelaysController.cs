@@ -32,8 +32,8 @@ namespace Huxley.Controllers
 {
     public class DelaysController : LdbController
     {
-        public DelaysController(ILdbClient client, HuxleySettings settings)
-            : base(client, settings)
+        public DelaysController(ILdbClient client, HuxleySettings settings, IEnumerable<CrsRecord> crsRecords)
+            : base(client, settings, crsRecords)
         {
         }
 
@@ -44,8 +44,8 @@ namespace Huxley.Controllers
                 throw new HttpResponseException(HttpStatusCode.BadRequest);
 
             // Process CRS codes
-            request.Crs = MakeCrsCode(request.Crs);
-            request.FilterCrs = MakeCrsCode(request.FilterCrs);
+            request.Crs = MakeCrsCode(request.Crs, crsRecords);
+            request.FilterCrs = MakeCrsCode(request.FilterCrs, crsRecords);
 
             // Parse the list of comma separated STDs if provided (e.g. /btn/to/lon/50/0729,0744,0748)
             var stds = new List<string>();
@@ -118,7 +118,7 @@ namespace Huxley.Controllers
                             trainServices.Where(
                                 ts =>
                                     ts.destination.Any(
-                                        d => HuxleyApi.LondonTerminals.Any(lt => lt.CrsCode == d.crs.ToUpperInvariant())))
+                                        d => CrsRecord.LondonTerminals.Any(lt => lt.CrsCode == d.crs.ToUpperInvariant())))
                                 .ToArray();
                         break;
                     case FilterType.from:
@@ -126,7 +126,7 @@ namespace Huxley.Controllers
                             trainServices.Where(
                                 ts =>
                                     ts.origin.Any(
-                                        o => HuxleyApi.LondonTerminals.Any(lt => lt.CrsCode == o.crs.ToUpperInvariant())))
+                                        o => CrsRecord.LondonTerminals.Any(lt => lt.CrsCode == o.crs.ToUpperInvariant())))
                                 .ToArray();
                         break;
                     default:
