@@ -20,9 +20,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using CsvHelper.Configuration;
 
-namespace Huxley {
-    public sealed class NreCrsRecordMap : CsvClassMap<CrsRecord> {
-        public NreCrsRecordMap() {
+namespace Huxley
+{
+    public sealed class NreCrsRecordMap : CsvClassMap<CrsRecord>
+    {
+        public NreCrsRecordMap()
+        {
             Map(m => m.StationName).Name("Station name");
             Map(m => m.CrsCode).Name("Code");
         }

@@ -20,8 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
 
-namespace Huxley {
-    public class HuxleySettings {
+namespace Huxley
+{
+    public class HuxleySettings
+    {
         public Guid DarwinAccessToken { get; set; }
         public Guid ClientAccessToken { get; set; }
         public int DelayMinutesThreshold { get; set; }

@@ -24,21 +24,25 @@ using System.Web.Http;
 using Huxley.Models;
 using Huxley.ldbServiceReference;
 
-namespace Huxley.Controllers {
-    public class ServiceController : LdbController {
-
-        public ServiceController(ILdbClient client)
-            : base(client) {
+namespace Huxley.Controllers
+{
+    public class ServiceController : LdbController
+    {
+        public ServiceController(ILdbClient client, HuxleySettings settings)
+            : base(client, settings)
+        {
         }
 
         // GET /service/ID?accessToken=[your token]
-        public async Task<ServiceDetails> Get([FromUri] ServiceRequest request) {
+        public async Task<ServiceDetails> Get([FromUri] ServiceRequest request)
+        {
             Guid sid;
-            if (Guid.TryParse(request.ServiceId, out sid)) {
+            if (Guid.TryParse(request.ServiceId, out sid))
+            {
                 request.ServiceId = Convert.ToBase64String(sid.ToByteArray());
             }
-            var token = MakeAccessToken(request.AccessToken);
-            var service = await Client.GetServiceDetailsAsync(token, request.ServiceId);
+            var token = MakeAccessToken(request.AccessToken, huxleySettings);
+            var service = await client.GetServiceDetailsAsync(token, request.ServiceId);
             return service.GetServiceDetailsResult;
         }
     }

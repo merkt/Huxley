@@ -1,22 +1,26 @@
+using System;
+using System.Web;
+using Formo;
+using Huxley;
 using Huxley.ldbServiceReference;
+using Microsoft.Web.Infrastructure.DynamicModuleHelper;
+using Ninject;
+using Ninject.Web.Common;
 
-[assembly: WebActivatorEx.PreApplicationStartMethod(typeof(Huxley.App_Start.NinjectWebCommon), "Start")]
-[assembly: WebActivatorEx.ApplicationShutdownMethodAttribute(typeof(Huxley.App_Start.NinjectWebCommon), "Stop")]
+[assembly: WebActivatorEx.PreApplicationStartMethod(typeof (NinjectWebCommon), "Start")]
+[assembly: WebActivatorEx.ApplicationShutdownMethodAttribute(typeof (NinjectWebCommon), "Stop")]
 
-namespace Huxley.App_Start {
-    using System;
-    using System.Web;
-    using Microsoft.Web.Infrastructure.DynamicModuleHelper;
-    using Ninject;
-    using Ninject.Web.Common;
-
-    public static class NinjectWebCommon {
+namespace Huxley
+{
+    public static class NinjectWebCommon
+    {
         private static readonly Bootstrapper Bootstrapper = new Bootstrapper();
 
         /// <summary>
         /// Starts the application
         /// </summary>
-        public static void Start() {
+        public static void Start()
+        {
             DynamicModuleUtility.RegisterModule(typeof(OnePerRequestHttpModule));
             DynamicModuleUtility.RegisterModule(typeof(NinjectHttpModule));
             Bootstrapper.Initialize(CreateKernel);
@@ -25,7 +29,8 @@ namespace Huxley.App_Start {
         /// <summary>
         /// Stops the application.
         /// </summary>
-        public static void Stop() {
+        public static void Stop()
+        {
             Bootstrapper.ShutDown();
         }
 
@@ -33,15 +38,20 @@ namespace Huxley.App_Start {
         /// Creates the kernel that will manage your application.
         /// </summary>
         /// <returns>The created kernel.</returns>
-        private static IKernel CreateKernel() {
+        private static IKernel CreateKernel()
+        {
             var kernel = new StandardKernel();
-            try {
+            try
+            {
                 kernel.Bind<Func<IKernel>>().ToMethod(ctx => () => new Bootstrapper().Kernel);
                 kernel.Bind<IHttpModule>().To<HttpApplicationInitializationHttpModule>();
                 kernel.Bind<ILdbClient>().To<LdbClient>().InRequestScope();
                 kernel.Bind<LDBServiceSoapClient>().To<LDBServiceSoapClient>().InRequestScope();
+                kernel.Bind<HuxleySettings>().ToMethod(ctx => new Configuration().Bind<HuxleySettings>()).InSingletonScope();
                 return kernel;
-            } catch {
+            }
+            catch
+            {
                 kernel.Dispose();
                 throw;
             }

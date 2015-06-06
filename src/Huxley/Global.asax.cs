@@ -36,15 +36,12 @@ namespace Huxley
 {
     public class HuxleyApi : HttpApplication
     {
+        // TODO: Move these variables
         // Singleton to store the station name to CRS lookup
         public static IEnumerable<CrsRecord> CrsCodes { get; private set; }
 
         // Singleton to store the London Terminals CRS lookup
         public static IList<CrsRecord> LondonTerminals { get; private set; }
-
-        // TODO: get rid of this.
-        // Singleton to store the Huxley settings
-        public static HuxleySettings Settings { get; private set; }
 
         protected async void Application_Start()
         {
@@ -62,10 +59,6 @@ namespace Huxley
 
             // Pass Register into Configure to support attribute routing in the future
             GlobalConfiguration.Configure(WebApiConfig.Register);
-
-            // Load settings
-            dynamic config = new Configuration();
-            Settings = config.Bind<HuxleySettings>();
 
             // Set the CRS dictionary passing in embedded CRS path
             CrsCodes = await GetCrsCodes(Server.MapPath("~/RailReferences.csv"));

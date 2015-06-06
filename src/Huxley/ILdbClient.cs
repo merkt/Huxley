@@ -21,11 +21,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using System.Threading.Tasks;
 using Huxley.ldbServiceReference;
 
-namespace Huxley {
-    public interface ILdbClient {
-        Task<GetDepartureBoardResponse> GetDepartureBoardAsync(AccessToken accessToken, ushort numRows, string crs, string filterCrs, FilterType filterType, int timeOffset, int timeWindow);
-        Task<GetArrivalBoardResponse> GetArrivalBoardAsync(AccessToken accessToken, ushort numRows, string crs, string filterCrs, FilterType filterType, int timeOffset, int timeWindow);
-        Task<GetArrivalDepartureBoardResponse> GetArrivalDepartureBoardAsync(AccessToken accessToken, ushort numRows, string crs, string filterCrs, FilterType filterType, int timeOffset, int timeWindow);
+namespace Huxley
+{
+    public interface ILdbClient
+    {
+        Task<GetDepartureBoardResponse> GetDepartureBoardAsync(AccessToken accessToken, ushort numRows, string crs,
+            string filterCrs, FilterType filterType, int timeOffset, int timeWindow);
+
+        Task<GetArrivalBoardResponse> GetArrivalBoardAsync(AccessToken accessToken, ushort numRows, string crs,
+            string filterCrs, FilterType filterType, int timeOffset, int timeWindow);
+
+        Task<GetArrivalDepartureBoardResponse> GetArrivalDepartureBoardAsync(AccessToken accessToken, ushort numRows,
+            string crs, string filterCrs, FilterType filterType, int timeOffset, int timeWindow);
+
         Task<GetServiceDetailsResponse> GetServiceDetailsAsync(AccessToken accessToken, string serviceId);
     }
 }

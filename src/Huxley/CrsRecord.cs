@@ -20,7 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
 
-namespace Huxley {
+namespace Huxley
+{
     public class CrsRecord : IEquatable<CrsRecord>
     {
         public string StationName { get; set; }

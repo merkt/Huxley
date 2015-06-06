@@ -20,8 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
 
-namespace Huxley.Models {
-    public class BaseRequest {
+namespace Huxley.Models
+{
+    public class BaseRequest
+    {
         public Guid AccessToken { get; set; }
     }
 }

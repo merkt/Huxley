@@ -22,44 +22,73 @@ using System;
 using System.Threading.Tasks;
 using Huxley.ldbServiceReference;
 
-namespace Huxley {
-    public class LdbClient : ILdbClient {
+namespace Huxley
+{
+    public class LdbClient : ILdbClient
+    {
+        private readonly LDBServiceSoapClient _client;
 
-        private readonly LDBServiceSoapClient client;
-
-        public LdbClient(LDBServiceSoapClient client) {
-            this.client = client;
+        public LdbClient(LDBServiceSoapClient client)
+        {
+            this._client = client;
         }
 
-        public async Task<GetDepartureBoardResponse> GetDepartureBoardAsync(AccessToken accessToken, ushort numRows, string crs, string filterCrs,
-                                                                              FilterType filterType, int timeOffset, int timeWindow) {
-            return await Execute(() => client.GetDepartureBoardAsync(accessToken, numRows, crs, filterCrs, filterType, timeOffset, timeWindow));
-
+        public async Task<GetDepartureBoardResponse> GetDepartureBoardAsync(AccessToken accessToken, ushort numRows,
+            string crs, string filterCrs,
+            FilterType filterType, int timeOffset, int timeWindow)
+        {
+            return
+                await
+                    Execute(
+                        () =>
+                            _client.GetDepartureBoardAsync(accessToken, numRows, crs, filterCrs, filterType, timeOffset,
+                                timeWindow));
         }
 
-        public async Task<GetArrivalBoardResponse> GetArrivalBoardAsync(AccessToken accessToken, ushort numRows, string crs, string filterCrs,
-                                                                          FilterType filterType, int timeOffset, int timeWindow) {
-            return await Execute(() => client.GetArrivalBoardAsync(accessToken, numRows, crs, filterCrs, filterType, timeOffset, timeWindow));
+        public async Task<GetArrivalBoardResponse> GetArrivalBoardAsync(AccessToken accessToken, ushort numRows,
+            string crs, string filterCrs,
+            FilterType filterType, int timeOffset, int timeWindow)
+        {
+            return
+                await
+                    Execute(
+                        () =>
+                            _client.GetArrivalBoardAsync(accessToken, numRows, crs, filterCrs, filterType, timeOffset,
+                                timeWindow));
         }
 
-        public async Task<GetArrivalDepartureBoardResponse> GetArrivalDepartureBoardAsync(AccessToken accessToken, ushort numRows, string crs, string filterCrs,
-                                                                                            FilterType filterType, int timeOffset, int timeWindow) {
-            return await Execute(() => client.GetArrivalDepartureBoardAsync(accessToken, numRows, crs, filterCrs, filterType, timeOffset, timeWindow));
+        public async Task<GetArrivalDepartureBoardResponse> GetArrivalDepartureBoardAsync(AccessToken accessToken,
+            ushort numRows, string crs, string filterCrs,
+            FilterType filterType, int timeOffset, int timeWindow)
+        {
+            return
+                await
+                    Execute(
+                        () =>
+                            _client.GetArrivalDepartureBoardAsync(accessToken, numRows, crs, filterCrs, filterType,
+                                timeOffset, timeWindow));
         }
 
-        public async Task<GetServiceDetailsResponse> GetServiceDetailsAsync(AccessToken accessToken, string serviceId) {
-            return await Execute(() => client.GetServiceDetailsAsync(accessToken, serviceId));
+        public async Task<GetServiceDetailsResponse> GetServiceDetailsAsync(AccessToken accessToken, string serviceId)
+        {
+            return await Execute(() => _client.GetServiceDetailsAsync(accessToken, serviceId));
         }
 
-        private T Execute<T>(Func<T> func) {
+        private T Execute<T>(Func<T> func)
+        {
             // Avoiding Problems with the Using Statement in WCF clients
-            try {
+            try
+            {
                 return func();
-            } catch (Exception) {
-                client.Abort();
+            }
+            catch (Exception)
+            {
+                _client.Abort();
                 throw;
-            } finally {
-                client.Close();
+            }
+            finally
+            {
+                _client.Close();
             }
         }
     }

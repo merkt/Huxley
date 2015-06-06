@@ -23,20 +23,27 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web.Http;
 
-namespace Huxley.Controllers {
-    public class CrsController : ApiController {
+namespace Huxley.Controllers
+{
+    public class CrsController : ApiController
+    {
         // GET /crs
-        public IEnumerable<CrsRecord> Get() {
+        public IEnumerable<CrsRecord> Get()
+        {
             return HuxleyApi.CrsCodes;
         }
 
         // GET /crs/{query}
-        public IEnumerable<CrsRecord> Get(string query) {
-            if (query.Equals("London Terminals", StringComparison.InvariantCultureIgnoreCase)) {
+        public IEnumerable<CrsRecord> Get(string query)
+        {
+            if (query.Equals("London Terminals", StringComparison.InvariantCultureIgnoreCase))
+            {
                 return HuxleyApi.LondonTerminals;
             }
             // Could use a RegEx here but putting user input into a RegEx can be dangerous
-            var results = HuxleyApi.CrsCodes.Where(c => c.StationName.IndexOf(query, StringComparison.InvariantCultureIgnoreCase) >= 0);
+            var results =
+                HuxleyApi.CrsCodes.Where(
+                    c => c.StationName.IndexOf(query, StringComparison.InvariantCultureIgnoreCase) >= 0);
             return results;
         }
     }

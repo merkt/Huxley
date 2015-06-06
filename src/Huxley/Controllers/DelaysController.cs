@@ -32,8 +32,8 @@ namespace Huxley.Controllers
 {
     public class DelaysController : LdbController
     {
-        public DelaysController(ILdbClient client)
-            : base(client)
+        public DelaysController(ILdbClient client, HuxleySettings settings)
+            : base(client, settings)
         {
         }
 
@@ -82,9 +82,13 @@ namespace Huxley.Controllers
             var totalDelayMinutes = 0;
             var delayedTrains = new List<ServiceItem>();
 
-            var token = MakeAccessToken(request.AccessToken);
+            var token = MakeAccessToken(request.AccessToken, huxleySettings);
 
             var filterCrs = request.FilterCrs;
+
+            if (filterCrs == null)
+                throw new HttpResponseException(HttpStatusCode.BadRequest);
+
             if (request.FilterCrs.Equals("LON", StringComparison.InvariantCultureIgnoreCase) ||
                 request.FilterCrs.Equals("London", StringComparison.InvariantCultureIgnoreCase))
             {
@@ -93,7 +97,7 @@ namespace Huxley.Controllers
 
             var board =
                 await
-                    Client.GetDepartureBoardAsync(token, request.NumRows, request.Crs, filterCrs, request.FilterType, 0,
+                    client.GetDepartureBoardAsync(token, request.NumRows, request.Crs, filterCrs, request.FilterType, 0,
                         0);
 
             var response = board.GetStationBoardResult;
@@ -159,7 +163,7 @@ namespace Huxley.Controllers
                         {
                             var late = etd.Subtract(std);
                             totalDelayMinutes += (int) late.TotalMinutes;
-                            if (late.TotalMinutes > HuxleyApi.Settings.DelayMinutesThreshold)
+                            if (late.TotalMinutes > huxleySettings.DelayMinutesThreshold)
                             {
                                 delayedTrains.Add(si);
                             }

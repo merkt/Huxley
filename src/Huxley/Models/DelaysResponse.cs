@@ -22,8 +22,10 @@ using System;
 using System.Collections.Generic;
 using Huxley.ldbServiceReference;
 
-namespace Huxley.Models {
-    public class DelaysResponse {
+namespace Huxley.Models
+{
+    public class DelaysResponse
+    {
         public DateTime GeneratedAt { get; set; }
         public string LocationName { get; set; }
         public string Crs { get; set; }

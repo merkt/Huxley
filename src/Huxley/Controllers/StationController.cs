@@ -23,34 +23,47 @@ using System.Web.Http;
 using Huxley.Models;
 using Huxley.ldbServiceReference;
 
-namespace Huxley.Controllers {
-    public class StationController : LdbController {
-
-        public StationController(ILdbClient client)
-            : base(client) {
+namespace Huxley.Controllers
+{
+    public class StationController : LdbController
+    {
+        public StationController(ILdbClient client, HuxleySettings settings)
+            : base(client, settings)
+        {
         }
 
         // GET /{board}/CRS?accessToken=[your token]
-        public async Task<StationBoard> Get([FromUri] StationBoardRequest request) {
-
+        public async Task<StationBoard> Get([FromUri] StationBoardRequest request)
+        {
             // Process CRS codes
             request.Crs = MakeCrsCode(request.Crs);
             request.FilterCrs = MakeCrsCode(request.FilterCrs);
 
-            var token = MakeAccessToken(request.AccessToken);
+            var token = MakeAccessToken(request.AccessToken, huxleySettings);
 
-            if (Board.Departures == request.Board) {
-                var departures = await Client.GetDepartureBoardAsync(token, request.NumRows, request.Crs, request.FilterCrs, request.FilterType, 0, 0);
+            if (Board.Departures == request.Board)
+            {
+                var departures =
+                    await
+                        client.GetDepartureBoardAsync(token, request.NumRows, request.Crs, request.FilterCrs,
+                            request.FilterType, 0, 0);
                 return departures.GetStationBoardResult;
             }
 
-            if (Board.Arrivals == request.Board) {
-                var arrivals = await Client.GetArrivalBoardAsync(token, request.NumRows, request.Crs, request.FilterCrs, request.FilterType, 0, 0);
+            if (Board.Arrivals == request.Board)
+            {
+                var arrivals =
+                    await
+                        client.GetArrivalBoardAsync(token, request.NumRows, request.Crs, request.FilterCrs,
+                            request.FilterType, 0, 0);
                 return arrivals.GetStationBoardResult;
             }
 
             // Default all (departures and arrivals board)
-            var board = await Client.GetArrivalDepartureBoardAsync(token, request.NumRows, request.Crs, request.FilterCrs, request.FilterType, 0, 0);
+            var board =
+                await
+                    client.GetArrivalDepartureBoardAsync(token, request.NumRows, request.Crs, request.FilterCrs,
+                        request.FilterType, 0, 0);
             return board.GetStationBoardResult;
         }
     }
