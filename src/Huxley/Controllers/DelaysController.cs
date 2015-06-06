@@ -22,20 +22,26 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using System.Web.Http;
 using Huxley.Models;
 using Huxley.ldbServiceReference;
 
-namespace Huxley.Controllers {
-    public class DelaysController : LdbController {
-
+namespace Huxley.Controllers
+{
+    public class DelaysController : LdbController
+    {
         public DelaysController(ILdbClient client)
-            : base(client) {
+            : base(client)
+        {
         }
 
         // GET /delays/{crs}/{filtertype}/{filtercrs}/{numrows}/{stds}?accessToken=[your token]
-        public async Task<DelaysResponse> Get([FromUri] StationBoardRequest request) {
+        public async Task<DelaysResponse> Get([FromUri] StationBoardRequest request)
+        {
+            if (request.AccessToken == null)
+                throw new HttpResponseException(HttpStatusCode.BadRequest);
 
             // Process CRS codes
             request.Crs = MakeCrsCode(request.Crs);
@@ -43,24 +49,32 @@ namespace Huxley.Controllers {
 
             // Parse the list of comma separated STDs if provided (e.g. /btn/to/lon/50/0729,0744,0748)
             var stds = new List<string>();
-            if (!string.IsNullOrWhiteSpace(request.Std)) {
+            if (!string.IsNullOrWhiteSpace(request.Std))
+            {
                 var potentialStds = request.Std.Split(',');
-                var ukNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time"));
+                var ukNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+                    TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time"));
                 var dontRequest = 0;
-                foreach (var potentialStd in potentialStds) {
+                foreach (var potentialStd in potentialStds)
+                {
                     DateTime requestStd;
                     // Parse the STD in 24-hour format (with no colon)
-                    if (!DateTime.TryParseExact(potentialStd, "HHmm", CultureInfo.InvariantCulture, DateTimeStyles.None, out requestStd)) {
+                    if (
+                        !DateTime.TryParseExact(potentialStd, "HHmm", CultureInfo.InvariantCulture, DateTimeStyles.None,
+                            out requestStd))
+                    {
                         continue;
                     }
                     stds.Add(potentialStd);
                     var diff = requestStd.Subtract(ukNow);
-                    if (diff.TotalHours > 2 || diff.TotalHours < -1) {
+                    if (diff.TotalHours > 2 || diff.TotalHours < -1)
+                    {
                         dontRequest++;
                     }
                 }
                 // Don't make a request if all trains are more than 2 hours in the future or more than 1 hour in the past
-                if (stds.Count > 0 && stds.Count == dontRequest) {
+                if (stds.Count > 0 && stds.Count == dontRequest)
+                {
                     return new DelaysResponse();
                 }
             }
@@ -72,11 +86,15 @@ namespace Huxley.Controllers {
 
             var filterCrs = request.FilterCrs;
             if (request.FilterCrs.Equals("LON", StringComparison.InvariantCultureIgnoreCase) ||
-                request.FilterCrs.Equals("London", StringComparison.InvariantCultureIgnoreCase)) {
+                request.FilterCrs.Equals("London", StringComparison.InvariantCultureIgnoreCase))
+            {
                 filterCrs = null;
             }
 
-            var board = await Client.GetDepartureBoardAsync(token, request.NumRows, request.Crs, filterCrs, request.FilterType, 0, 0);
+            var board =
+                await
+                    Client.GetDepartureBoardAsync(token, request.NumRows, request.Crs, filterCrs, request.FilterType, 0,
+                        0);
 
             var response = board.GetStationBoardResult;
             var filterLocationName = response.filterLocationName;
@@ -85,15 +103,27 @@ namespace Huxley.Controllers {
             var railReplacement = null != response.busServices && !trainServices.Any() && response.busServices.Any();
             var messagesPresent = null != response.nrccMessages && response.nrccMessages.Any();
 
-            if (null == filterCrs) {
+            if (null == filterCrs)
+            {
                 // This only finds trains terminating at London terminals. BFR/STP etc. won't be picked up if called at en-route.
                 // Could query for every terminal or get service for every train and check calling points. Very chatty either way.
-                switch (request.FilterType) {
+                switch (request.FilterType)
+                {
                     case FilterType.to:
-                        trainServices = trainServices.Where(ts => ts.destination.Any(d => HuxleyApi.LondonTerminals.Any(lt => lt.CrsCode == d.crs.ToUpperInvariant()))).ToArray();
+                        trainServices =
+                            trainServices.Where(
+                                ts =>
+                                    ts.destination.Any(
+                                        d => HuxleyApi.LondonTerminals.Any(lt => lt.CrsCode == d.crs.ToUpperInvariant())))
+                                .ToArray();
                         break;
                     case FilterType.from:
-                        trainServices = trainServices.Where(ts => ts.origin.Any(o => HuxleyApi.LondonTerminals.Any(lt => lt.CrsCode == o.crs.ToUpperInvariant()))).ToArray();
+                        trainServices =
+                            trainServices.Where(
+                                ts =>
+                                    ts.origin.Any(
+                                        o => HuxleyApi.LondonTerminals.Any(lt => lt.CrsCode == o.crs.ToUpperInvariant())))
+                                .ToArray();
                         break;
                     default:
                         throw new ArgumentOutOfRangeException();
@@ -103,24 +133,34 @@ namespace Huxley.Controllers {
             }
 
             // If STDs are provided then select only the train(s) matching them
-            if (stds.Count > 0) {
+            if (stds.Count > 0)
+            {
                 trainServices = trainServices.Where(ts => stds.Contains(ts.std.Replace(":", ""))).ToArray();
             }
 
             // Parse the response from the web service.
-            foreach (var si in trainServices.Where(si => !si.etd.Equals("On time", StringComparison.InvariantCultureIgnoreCase))) {
+            foreach (
+                var si in
+                    trainServices.Where(si => !si.etd.Equals("On time", StringComparison.InvariantCultureIgnoreCase)))
+            {
                 if (si.etd.Equals("Delayed", StringComparison.InvariantCultureIgnoreCase) ||
-                    si.etd.Equals("Cancelled", StringComparison.InvariantCultureIgnoreCase)) {
+                    si.etd.Equals("Cancelled", StringComparison.InvariantCultureIgnoreCase))
+                {
                     delayedTrains.Add(si);
-                } else {
+                }
+                else
+                {
                     DateTime etd;
                     // Could be "Starts Here", "No Report" or contain a * (report overdue)
-                    if (DateTime.TryParse(si.etd.Replace("*", ""), out etd)) {
+                    if (DateTime.TryParse(si.etd.Replace("*", ""), out etd))
+                    {
                         DateTime std;
-                        if (DateTime.TryParse(si.std, out std)) {
+                        if (DateTime.TryParse(si.std, out std))
+                        {
                             var late = etd.Subtract(std);
-                            totalDelayMinutes += (int)late.TotalMinutes;
-                            if (late.TotalMinutes > HuxleyApi.Settings.DelayMinutesThreshold) {
+                            totalDelayMinutes += (int) late.TotalMinutes;
+                            if (late.TotalMinutes > HuxleyApi.Settings.DelayMinutesThreshold)
+                            {
                                 delayedTrains.Add(si);
                             }
                         }
@@ -128,7 +168,8 @@ namespace Huxley.Controllers {
                 }
             }
 
-            return new DelaysResponse {
+            return new DelaysResponse
+            {
                 GeneratedAt = response.generatedAt,
                 Crs = response.crs,
                 LocationName = response.locationName,

@@ -42,6 +42,7 @@ namespace Huxley
         // Singleton to store the London Terminals CRS lookup
         public static IList<CrsRecord> LondonTerminals { get; private set; }
 
+        // TODO: get rid of this.
         // Singleton to store the Huxley settings
         public static HuxleySettings Settings { get; private set; }
 
