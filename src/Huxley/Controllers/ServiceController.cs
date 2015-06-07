@@ -27,11 +27,17 @@ using Huxley.ldbServiceReference;
 
 namespace Huxley.Controllers
 {
-    public class ServiceController : LdbController
+    public class ServiceController : ApiController
     {
+        private readonly ILdbClient _client;
+        private readonly HuxleySettings _huxleySettings;
+        private readonly IEnumerable<CrsRecord> _crsRecords;
+
         public ServiceController(ILdbClient client, HuxleySettings settings, IEnumerable<CrsRecord> crsRecords)
-            : base(client, settings, crsRecords)
         {
+            _client = client;
+            _huxleySettings = settings;
+            _crsRecords = crsRecords;
         }
 
         // GET /service/ID?accessToken=[your token]
@@ -42,8 +48,8 @@ namespace Huxley.Controllers
             {
                 request.ServiceId = Convert.ToBase64String(sid.ToByteArray());
             }
-            var token = MakeAccessToken(request.AccessToken, huxleySettings);
-            var service = await client.GetServiceDetailsAsync(token, request.ServiceId);
+            var token = LdbHelper.MakeAccessToken(request.AccessToken, _huxleySettings);
+            var service = await _client.GetServiceDetailsAsync(token, request.ServiceId);
             return service.GetServiceDetailsResult;
         }
     }

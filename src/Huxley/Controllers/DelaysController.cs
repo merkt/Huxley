@@ -30,11 +30,17 @@ using Huxley.ldbServiceReference;
 
 namespace Huxley.Controllers
 {
-    public class DelaysController : LdbController
+    public class DelaysController : ApiController
     {
+        private readonly ILdbClient _client;
+        private readonly HuxleySettings _huxleySettings;
+        private readonly IEnumerable<CrsRecord> _crsRecords;
+
         public DelaysController(ILdbClient client, HuxleySettings settings, IEnumerable<CrsRecord> crsRecords)
-            : base(client, settings, crsRecords)
         {
+            _client = client;
+            _huxleySettings = settings;
+            _crsRecords = crsRecords;
         }
 
         // GET /delays/{crs}/{filtertype}/{filtercrs}/{numrows}/{stds}?accessToken=[your token]
@@ -44,8 +50,8 @@ namespace Huxley.Controllers
                 throw new HttpResponseException(HttpStatusCode.BadRequest);
 
             // Process CRS codes
-            request.Crs = MakeCrsCode(request.Crs, crsRecords);
-            request.FilterCrs = MakeCrsCode(request.FilterCrs, crsRecords);
+            request.Crs = LdbHelper.MakeCrsCode(request.Crs, _crsRecords);
+            request.FilterCrs = LdbHelper.MakeCrsCode(request.FilterCrs, _crsRecords);
 
             // Parse the list of comma separated STDs if provided (e.g. /btn/to/lon/50/0729,0744,0748)
             var stds = new List<string>();
@@ -82,7 +88,7 @@ namespace Huxley.Controllers
             var totalDelayMinutes = 0;
             var delayedTrains = new List<ServiceItem>();
 
-            var token = MakeAccessToken(request.AccessToken, huxleySettings);
+            var token = LdbHelper.MakeAccessToken(request.AccessToken, _huxleySettings);
 
             var filterCrs = request.FilterCrs;
 
@@ -97,7 +103,7 @@ namespace Huxley.Controllers
 
             var board =
                 await
-                    client.GetDepartureBoardAsync(token, request.NumRows, request.Crs, filterCrs, request.FilterType, 0,
+                    _client.GetDepartureBoardAsync(token, request.NumRows, request.Crs, filterCrs, request.FilterType, 0,
                         0);
 
             var response = board.GetStationBoardResult;
@@ -164,7 +170,7 @@ namespace Huxley.Controllers
                             // TODO: fix this calculation
                             var late = etd.Subtract(std);
                             totalDelayMinutes += (int) late.TotalMinutes;
-                            if (late.TotalMinutes > huxleySettings.DelayMinutesThreshold)
+                            if (late.TotalMinutes > _huxleySettings.DelayMinutesThreshold)
                             {
                                 delayedTrains.Add(si);
                             }

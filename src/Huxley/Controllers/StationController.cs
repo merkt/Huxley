@@ -26,27 +26,33 @@ using Huxley.ldbServiceReference;
 
 namespace Huxley.Controllers
 {
-    public class StationController : LdbController
+    public class StationController : ApiController
     {
+        private readonly ILdbClient _client;
+        private readonly HuxleySettings _huxleySettings;
+        private readonly IEnumerable<CrsRecord> _crsRecords;
+
         public StationController(ILdbClient client, HuxleySettings settings, IEnumerable<CrsRecord> crsRecords)
-            : base(client, settings, crsRecords)
         {
+            _client = client;
+            _huxleySettings = settings;
+            _crsRecords = crsRecords;
         }
 
         // GET /{board}/CRS?accessToken=[your token]
         public async Task<StationBoard> Get([FromUri] StationBoardRequest request)
         {
             // Process CRS codes
-            request.Crs = MakeCrsCode(request.Crs, crsRecords);
-            request.FilterCrs = MakeCrsCode(request.FilterCrs, crsRecords);
+            request.Crs = LdbHelper.MakeCrsCode(request.Crs, _crsRecords);
+            request.FilterCrs = LdbHelper.MakeCrsCode(request.FilterCrs, _crsRecords);
 
-            var token = MakeAccessToken(request.AccessToken, huxleySettings);
+            var token = LdbHelper.MakeAccessToken(request.AccessToken, _huxleySettings);
 
             if (Board.Departures == request.Board)
             {
                 var departures =
                     await
-                        client.GetDepartureBoardAsync(token, request.NumRows, request.Crs, request.FilterCrs,
+                        _client.GetDepartureBoardAsync(token, request.NumRows, request.Crs, request.FilterCrs,
                             request.FilterType, 0, 0);
                 return departures.GetStationBoardResult;
             }
@@ -55,7 +61,7 @@ namespace Huxley.Controllers
             {
                 var arrivals =
                     await
-                        client.GetArrivalBoardAsync(token, request.NumRows, request.Crs, request.FilterCrs,
+                        _client.GetArrivalBoardAsync(token, request.NumRows, request.Crs, request.FilterCrs,
                             request.FilterType, 0, 0);
                 return arrivals.GetStationBoardResult;
             }
@@ -63,7 +69,7 @@ namespace Huxley.Controllers
             // Default all (departures and arrivals board)
             var board =
                 await
-                    client.GetArrivalDepartureBoardAsync(token, request.NumRows, request.Crs, request.FilterCrs,
+                    _client.GetArrivalDepartureBoardAsync(token, request.NumRows, request.Crs, request.FilterCrs,
                         request.FilterType, 0, 0);
             return board.GetStationBoardResult;
         }
