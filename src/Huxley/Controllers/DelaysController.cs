@@ -54,36 +54,8 @@ namespace Huxley.Controllers
             request.FilterCrs = LdbHelper.MakeCrsCode(request.FilterCrs, _crsRecords);
 
             // Parse the list of comma separated STDs if provided (e.g. /btn/to/lon/50/0729,0744,0748)
-            var stds = new List<string>();
-            if (!string.IsNullOrWhiteSpace(request.Std))
-            {
-                var potentialStds = request.Std.Split(',');
-                var ukNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
-                    TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time"));
-                var dontRequest = 0;
-                foreach (var potentialStd in potentialStds)
-                {
-                    DateTime requestStd;
-                    // Parse the STD in 24-hour format (with no colon)
-                    if (
-                        !DateTime.TryParseExact(potentialStd, "HHmm", CultureInfo.InvariantCulture, DateTimeStyles.None,
-                            out requestStd))
-                    {
-                        continue;
-                    }
-                    stds.Add(potentialStd);
-                    var diff = requestStd.Subtract(ukNow);
-                    if (diff.TotalHours > 2 || diff.TotalHours < -1)
-                    {
-                        dontRequest++;
-                    }
-                }
-                // Don't make a request if all trains are more than 2 hours in the future or more than 1 hour in the past
-                if (stds.Count > 0 && stds.Count == dontRequest)
-                {
-                    return new DelaysResponse();
-                }
-            }
+            List<string> stds;
+            if (!ParseStds(request.Std, out stds)) return new DelaysResponse();
 
             var totalDelayMinutes = 0;
             var delayedTrains = new List<ServiceItem>();
@@ -192,6 +164,43 @@ namespace Huxley.Controllers
                 TotalTrains = trainServices.Length,
                 DelayedTrains = delayedTrains,
             };
+        }
+
+        static bool ParseStds(string stdCsvString, out List<string> stds)
+        {
+            stds = new List<string>();
+            if (!string.IsNullOrWhiteSpace(stdCsvString))
+            {
+                var potentialStds = stdCsvString.Split(',');
+                var ukNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+                    TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time"));
+                var dontRequest = 0;
+                foreach (var potentialStd in potentialStds)
+                {
+                    DateTime requestStd;
+                    // Parse the STD in 24-hour format (with no colon)
+                    if (
+                        !DateTime.TryParseExact(potentialStd, "HHmm", CultureInfo.InvariantCulture, DateTimeStyles.None,
+                            out requestStd))
+                    {
+                        continue;
+                    }
+                    stds.Add(potentialStd);
+                    var diff = requestStd.Subtract(ukNow);
+                    if (diff.TotalHours > 2 || diff.TotalHours < -1)
+                    {
+                        dontRequest++;
+                    }
+                }
+                // Don't make a request if all trains are more than 2 hours in the future or more than 1 hour in the past
+                if (stds.Count > 0 && stds.Count == dontRequest)
+                {
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
         }
     }
 }

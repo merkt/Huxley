@@ -38,12 +38,14 @@ namespace Huxley.Tests.Controllers
                 Crs = "clapham junction",
                 FilterType = FilterType.@from,
                 FilterCrs = "london",
-                NumRows = 25
+                NumRows = 20
             };
         };
 
         Because of = () => _response = _delaysController.Get(_stationBoardRequest).Await().AsTask.Result;
 
         It should_return_a_response = () => _response.ShouldNotBeNull();
+
+        It should_return_a_response_with_a_train_total = () => _response.TotalTrains.ShouldBeGreaterThan(0);
     }
 }
