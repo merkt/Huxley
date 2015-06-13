@@ -49,113 +49,75 @@ namespace Huxley.Controllers
             if (request.AccessToken == null)
                 throw new HttpResponseException(HttpStatusCode.BadRequest);
 
+            if (request.FilterCrs == null)
+                throw new HttpResponseException(HttpStatusCode.BadRequest);
+
             // Process CRS codes
-            request.Crs = LdbHelper.MakeCrsCode(request.Crs, _crsRecords);
-            request.FilterCrs = LdbHelper.MakeCrsCode(request.FilterCrs, _crsRecords);
+            request.Crs = LdbHelper.GetCrsCode(request.Crs, _crsRecords);
+            request.FilterCrs = LdbHelper.GetCrsCode(request.FilterCrs, _crsRecords);
 
-            // Parse the list of comma separated STDs if provided (e.g. /btn/to/lon/50/0729,0744,0748)
             List<string> stds;
-            if (!ParseStds(request.Std, out stds)) return new DelaysResponse();
-
-            var totalDelayMinutes = 0;
-            var delayedTrains = new List<ServiceItem>();
-
-            var token = LdbHelper.MakeAccessToken(request.AccessToken, _huxleySettings);
+            // Parse the list of comma separated STDs if provided (e.g. /btn/to/lon/50/0729,0744,0748)
+            if (!ParseStds(request.Std, out stds)) 
+                return new DelaysResponse();
 
             var filterCrs = request.FilterCrs;
+            StationBoard board;
+            ServiceItem[] trainServices;
+            string filterLocationName;
 
-            if (filterCrs == null)
-                throw new HttpResponseException(HttpStatusCode.BadRequest);
+            var token = LdbHelper.GetDarwinAccessToken(request.AccessToken, _huxleySettings);
 
             if (request.FilterCrs.Equals("LON", StringComparison.InvariantCultureIgnoreCase) ||
                 request.FilterCrs.Equals("London", StringComparison.InvariantCultureIgnoreCase))
             {
-                filterCrs = null;
-            }
+                var response =
+                    await
+                        _client.GetDepartureBoardAsync(token, request.NumRows, request.Crs, null,
+                            request.FilterType, 0,
+                            0).ConfigureAwait(false);
 
-            var board =
-                await
-                    _client.GetDepartureBoardAsync(token, request.NumRows, request.Crs, filterCrs, request.FilterType, 0,
-                        0);
+                board = response.GetStationBoardResult;
 
-            var response = board.GetStationBoardResult;
-            var filterLocationName = response.filterLocationName;
+                var londonDepartures = FilterLondonDepartures(board.trainServices, request.FilterType);
+                trainServices = londonDepartures as ServiceItem[] ?? londonDepartures.ToArray();
 
-            var trainServices = response.trainServices ?? new ServiceItem[0];
-            var railReplacement = null != response.busServices && !trainServices.Any() && response.busServices.Any();
-            var messagesPresent = null != response.nrccMessages && response.nrccMessages.Any();
-
-            if (null == filterCrs)
-            {
-                // This only finds trains terminating at London terminals. BFR/STP etc. won't be picked up if called at en-route.
-                // Could query for every terminal or get service for every train and check calling points. Very chatty either way.
-                switch (request.FilterType)
-                {
-                    case FilterType.to:
-                        trainServices =
-                            trainServices.Where(
-                                ts =>
-                                    ts.destination.Any(
-                                        d => CrsRecord.LondonTerminals.Any(lt => lt.CrsCode == d.crs.ToUpperInvariant())))
-                                .ToArray();
-                        break;
-                    case FilterType.from:
-                        trainServices =
-                            trainServices.Where(
-                                ts =>
-                                    ts.origin.Any(
-                                        o => CrsRecord.LondonTerminals.Any(lt => lt.CrsCode == o.crs.ToUpperInvariant())))
-                                .ToArray();
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
                 filterCrs = "LON";
                 filterLocationName = "London";
             }
+            else
+            {
+                var response =
+                    await
+                        _client.GetDepartureBoardAsync(token, request.NumRows, request.Crs, filterCrs,
+                            request.FilterType, 0,
+                            0).ConfigureAwait(false);
+                
+                board = response.GetStationBoardResult;
+                trainServices = board.trainServices ?? new ServiceItem[0];
+                filterLocationName = board.filterLocationName;
+            }            
+
+            var railReplacement = board.busServices != null && !trainServices.Any() && board.busServices.Any();
+            var messagesPresent = board.nrccMessages != null && board.nrccMessages.Any();
 
             // If STDs are provided then select only the train(s) matching them
             if (stds.Count > 0)
             {
-                trainServices = trainServices.Where(ts => stds.Contains(ts.std.Replace(":", ""))).ToArray();
+                trainServices =
+                    trainServices.Where(ts => stds.Contains(ts.ScheduledTimeOfDeparture.Replace(":", ""))).ToArray();
             }
 
-            // Parse the response from the web service.
-            foreach (
-                var si in
-                    trainServices.Where(si => !si.etd.Equals("On time", StringComparison.InvariantCultureIgnoreCase)))
-            {
-                if (si.etd.Equals("Delayed", StringComparison.InvariantCultureIgnoreCase) ||
-                    si.etd.Equals("Cancelled", StringComparison.InvariantCultureIgnoreCase))
-                {
-                    delayedTrains.Add(si);
-                }
-                else
-                {
-                    DateTime etd;
-                    // Could be "Starts Here", "No Report" or contain a * (report overdue)
-                    if (DateTime.TryParse(si.etd.Replace("*", ""), out etd))
-                    {
-                        DateTime std;
-                        if (DateTime.TryParse(si.std, out std))
-                        {
-                            // TODO: fix this calculation
-                            var late = etd.Subtract(std);
-                            totalDelayMinutes += (int) late.TotalMinutes;
-                            if (late.TotalMinutes > _huxleySettings.DelayMinutesThreshold)
-                            {
-                                delayedTrains.Add(si);
-                            }
-                        }
-                    }
-                }
-            }
+            int totalDelayMinutes;
+            // TODO: make delay threshold part of request
+            var delayedTrains = GetDelayedTrains(trainServices, _huxleySettings.DelayMinutesThreshold,
+                out totalDelayMinutes);
 
             return new DelaysResponse
             {
-                GeneratedAt = response.generatedAt,
-                Crs = response.crs,
-                LocationName = response.locationName,
+                GeneratedAt = board.generatedAt,
+                Crs = board.crs,
+                LocationName = board.locationName,
                 Filtercrs = filterCrs,
                 FilterLocationName = filterLocationName,
                 Delays = delayedTrains.Count > 0 || railReplacement || messagesPresent,
@@ -166,7 +128,49 @@ namespace Huxley.Controllers
             };
         }
 
-        static bool ParseStds(string stdCsvString, out List<string> stds)
+        public static IList<ServiceItem> GetDelayedTrains(IEnumerable<ServiceItem> trainServices, int delayedMinutesThreshold,
+            out int totalDelayMinutes)
+        {
+            totalDelayMinutes = 0;
+            var delayedTrains = new List<ServiceItem>();
+
+            // Parse the response from the web service.
+            foreach (var service in trainServices)
+            {
+                if (service.EstimatedTimeOfDeparture.Equals("On time", StringComparison.InvariantCultureIgnoreCase))
+                    continue;
+
+                if (service.EstimatedTimeOfDeparture.Equals("Delayed", StringComparison.InvariantCultureIgnoreCase) ||
+                    service.EstimatedTimeOfDeparture.Equals("Cancelled", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    delayedTrains.Add(service);
+                }
+                else
+                {
+                    DateTime estimatedTimeOfDeparture;
+                    DateTime scheduledTimeOfDeparture;
+                    // Could be "Starts Here", "No Report" or contain a * (report overdue)
+                    if (
+                        DateTime.TryParse(service.EstimatedTimeOfDeparture.Replace("*", ""),
+                            out estimatedTimeOfDeparture) &&
+                        DateTime.TryParse(service.ScheduledTimeOfDeparture.Replace("*", ""),
+                            out scheduledTimeOfDeparture))
+                    {
+                        // TODO: fix this calculation
+                        var late = estimatedTimeOfDeparture.Subtract(scheduledTimeOfDeparture);
+                        totalDelayMinutes += (int) late.TotalMinutes;
+                        if (late.TotalMinutes > delayedMinutesThreshold)
+                        {
+                            delayedTrains.Add(service);
+                        }
+                    }
+                }
+            }
+            return delayedTrains;
+        }
+
+        // TODO: Rename STD to ScheduledTimeOfDeparture
+        public static bool ParseStds(string stdCsvString, out List<string> stds)
         {
             stds = new List<string>();
             if (!string.IsNullOrWhiteSpace(stdCsvString))
@@ -174,7 +178,7 @@ namespace Huxley.Controllers
                 var potentialStds = stdCsvString.Split(',');
                 var ukNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
                     TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time"));
-                var dontRequest = 0;
+                var invalidTimesCount = 0;
                 foreach (var potentialStd in potentialStds)
                 {
                     DateTime requestStd;
@@ -187,20 +191,48 @@ namespace Huxley.Controllers
                     }
                     stds.Add(potentialStd);
                     var diff = requestStd.Subtract(ukNow);
+                    // time is invalid if more than 2 hours in the future or more than 1 hour in the past
                     if (diff.TotalHours > 2 || diff.TotalHours < -1)
                     {
-                        dontRequest++;
+                        invalidTimesCount++;
                     }
                 }
-                // Don't make a request if all trains are more than 2 hours in the future or more than 1 hour in the past
-                if (stds.Count > 0 && stds.Count == dontRequest)
+
+                if (stds.Count > 0 && stds.Count == invalidTimesCount)
                 {
-                    {
-                        return false;
-                    }
+                    return false;
                 }
             }
             return true;
+        }
+
+        static IEnumerable<ServiceItem> FilterLondonDepartures(IEnumerable<ServiceItem> trainServices,
+            FilterType filterType)
+        {
+            if (trainServices == null)
+                return new ServiceItem[0];
+
+            // This only finds trains terminating at London terminals. BFR/STP etc. won't be picked up if called at en-route.
+            // Could query for every terminal or get service for every train and check calling points. Very chatty either way.
+            switch (filterType)
+            {
+                case FilterType.to:
+                    return
+                        trainServices.Where(
+                            ts =>
+                                ts.destination.Any(
+                                    d => CrsRecord.LondonTerminals.Any(lt => lt.CrsCode == d.crs.ToUpperInvariant())))
+                            .ToArray();
+                case FilterType.from:
+                    return
+                        trainServices.Where(
+                            ts =>
+                                ts.origin.Any(
+                                    o => CrsRecord.LondonTerminals.Any(lt => lt.CrsCode == o.crs.ToUpperInvariant())))
+                            .ToArray();
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
         }
     }
 }

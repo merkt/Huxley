@@ -48,7 +48,7 @@ namespace Huxley.Controllers
             {
                 request.ServiceId = Convert.ToBase64String(sid.ToByteArray());
             }
-            var token = LdbHelper.MakeAccessToken(request.AccessToken, _huxleySettings);
+            var token = LdbHelper.GetDarwinAccessToken(request.AccessToken, _huxleySettings);
             var service = await _client.GetServiceDetailsAsync(token, request.ServiceId);
             return service.GetServiceDetailsResult;
         }

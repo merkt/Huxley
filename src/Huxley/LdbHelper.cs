@@ -27,7 +27,7 @@ namespace Huxley
 {
     public static class LdbHelper
     {
-        public static AccessToken MakeAccessToken(Guid accessToken, HuxleySettings huxleySettings)
+        public static AccessToken GetDarwinAccessToken(Guid accessToken, HuxleySettings huxleySettings)
         {
             // If ClientAccessToken is an empty GUID then no token is required in the Huxley URL.
             // If ClientAccessToken matches the token in the URL then the DarwinAccessToken will be used instead in the SOAP call.
@@ -39,33 +39,32 @@ namespace Huxley
             return new AccessToken {TokenValue = accessToken.ToString()};
         }
 
-        public static string MakeCrsCode(string query, IEnumerable<CrsRecord> crsRecords)
+        public static string GetCrsCode(string query, IEnumerable<CrsRecord> crsRecords)
         {
             var crsRecordArray = crsRecords as CrsRecord[] ?? crsRecords.ToArray();
             
-            // Process CRS codes if query is present
-            if (!string.IsNullOrWhiteSpace(query) &&
-                // If query is not in the list of CRS codes
-                !crsRecordArray.Any(c =>
-                    c.CrsCode.Equals(query, StringComparison.InvariantCultureIgnoreCase)))
+            // Return original string if it is null, empty or 
+            // found as is in the given collection of CRS codes
+            if (string.IsNullOrWhiteSpace(query) || crsRecordArray.Any(c =>
+                c.CrsCode.Equals(query, StringComparison.InvariantCultureIgnoreCase))) return query;
+
+            // Search array for any CRS records which have a 
+            var results = crsRecordArray.Where(c =>
+                c.StationName.IndexOf(query, StringComparison.InvariantCultureIgnoreCase) >= 0).ToArray();
+
+            if (results.Length == 1)
             {
-                // And query matches a single station name
-                var results = crsRecordArray.Where(c =>
-                    c.StationName.IndexOf(query, StringComparison.InvariantCultureIgnoreCase) >= 0).ToList();
-                if (results.Count == 1)
+                // Return the only possible CRS code
+                return results[0].CrsCode;
+            }
+            // If more than one match then return one if it matches exactly
+            if (results.Length > 1)
+            {
+                var bestMatch = results.FirstOrDefault(r =>
+                    r.StationName.Equals(query, StringComparison.InvariantCultureIgnoreCase));
+                if (bestMatch != null)
                 {
-                    // Return the only possible CRS code
-                    return results[0].CrsCode;
-                }
-                // If more than one match then return one if it matches exactly
-                if (results.Count > 1)
-                {
-                    var bestMatch = results.FirstOrDefault(r =>
-                        r.StationName.Equals(query, StringComparison.InvariantCultureIgnoreCase));
-                    if (null != bestMatch)
-                    {
-                        return bestMatch.CrsCode;
-                    }
+                    return bestMatch.CrsCode;
                 }
             }
             // Otherwise return the query as is
