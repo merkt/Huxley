@@ -1,4 +1,4 @@
-﻿namespace Huxley.ldbServiceReference
+﻿namespace Huxley.DarwinService
 {
     public partial class ServiceItem
     {

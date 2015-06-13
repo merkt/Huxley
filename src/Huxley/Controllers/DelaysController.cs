@@ -26,7 +26,7 @@ using System.Net;
 using System.Threading.Tasks;
 using System.Web.Http;
 using Huxley.Models;
-using Huxley.ldbServiceReference;
+using Huxley.DarwinService;
 
 namespace Huxley.Controllers
 {
